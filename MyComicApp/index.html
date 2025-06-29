@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Manga Reader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .manga-reader {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+
+        .page-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: radial-gradient(circle at center, #2a2a4a, #1a1a2e);
+            user-select: none;
+        }
+
+        .tap-zone {
+            position: absolute;
+            z-index: 5;
+            opacity: 0;
+        }
+
+        .tap-zone-left {
+            cursor: w-resize;
+        }
+
+        .tap-zone-right {
+            cursor: e-resize;
+        }
+
+        .manga-page {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 0;
+            box-shadow: none;
+            transition: all 0.3s ease;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .manga-page:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .page-content {
+            text-align: center;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        .page-title {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: #2c3e50;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-text {
+            font-size: 1.3em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #555;
+            max-width: 600px;
+        }
+
+        .page-image {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 10px;
+            display: block;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+
+        .page-image.small {
+            max-width: 60vw;
+            max-height: 60vh;
+        }
+
+        .page-image.medium {
+            max-width: 70vw;
+            max-height: 70vh;
+        }
+
+        .page-image.large {
+            max-width: 85vw;
+            max-height: 85vh;
+        }
+
+        .page-image.extra-large {
+            max-width: 95vw;
+            max-height: 95vh;
+        }
+
+        .page-image-placeholder {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border-radius: 50%;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4em;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(231, 76, 60, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(231, 76, 60, 0.4);
+            background: linear-gradient(45deg, #c0392b, #a93226);
+        }
+
+        .control-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .control-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-info {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .page-number-center {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 1em;
+            backdrop-filter: blur(10px);
+            z-index: 99;
+            color: white;
+            font-weight: 500;
+        }
+
+        .image-controls {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            opacity: 0.3;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-controls:hover {
+            opacity: 1;
+        }
+
+        .image-control-btn {
+            background: rgba(46, 204, 113, 0.9);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            min-width: 35px;
+        }
+
+        .image-control-btn:hover {
+            background: rgba(39, 174, 96, 0.9);
+            transform: translateY(-2px);
+        }
+
+        .image-control-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .size-indicator {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.7em;
+            margin-top: 5px;
+        }
+
+        .audio-controls {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .audio-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .audio-timeline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 200px;
+        }
+
+        .time-display {
+            color: white;
+            font-size: 0.8em;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        .timeline-slider {
+            flex: 1;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .timeline-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            background: #3498db;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .timeline-slider::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            background: #3498db;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .audio-btn {
+            background: rgba(52, 152, 219, 0.9);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .audio-btn:hover {
+            background: rgba(41, 128, 185, 0.9);
+            transform: translateY(-2px);
+        }
+
+        .audio-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .volume-control {
+            width: 80px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-left: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .mobile-play-btn {
+            display: none;
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .controls {
+                display: none;
+            }
+            
+            .image-controls {
+                display: none;
+            }
+            
+            .page-number-center {
+                display: none;
+            }
+            
+            .page-image {
+                max-width: 100vw;
+                max-height: 100vh;
+                border-radius: 0;
+                box-shadow: none;
+            }
+            
+            .page-image.small,
+            .page-image.medium,
+            .page-image.large,
+            .page-image.extra-large {
+                max-width: 100vw;
+                max-height: 100vh;
+            }
+            
+            .audio-controls {
+                top: 20px;
+                left: 0;
+                right: 0;
+                transform: none;
+                padding: 8px 20px;
+                position: fixed;
+                z-index: 200;
+                align-items: center;
+                width: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                border-radius: 0;
+                backdrop-filter: blur(10px);
+                flex-direction: row;
+            }
+            
+            .audio-buttons {
+                display: none;
+            }
+            
+            .audio-timeline {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex: 1;
+                width: 100%;
+            }
+            
+            .mobile-play-btn {
+                display: flex;
+                background: transparent;
+                border: none;
+                color: white;
+                padding: 4px;
+                border-radius: 50%;
+                cursor: pointer;
+                font-size: 1.1em;
+                transition: all 0.3s ease;
+                backdrop-filter: none;
+                min-width: auto;
+                width: 32px;
+                height: 32px;
+                align-items: center;
+                justify-content: center;
+                margin-right: 5px;
+            }
+            
+            .mobile-play-btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+                transform: none;
+            }
+            
+            .timeline-slider {
+                flex: 1;
+                height: 3px;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 2px;
+                outline: none;
+                cursor: pointer;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            
+            .timeline-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 12px;
+                height: 12px;
+                background: #3498db;
+                border-radius: 50%;
+                cursor: pointer;
+            }
+            
+            .timeline-slider::-moz-range-thumb {
+                width: 12px;
+                height: 12px;
+                background: #3498db;
+                border-radius: 50%;
+                cursor: pointer;
+                border: none;
+            }
+            
+            .time-display {
+                color: white;
+                font-size: 0.7em;
+                min-width: 30px;
+                text-align: center;
+            }
+            
+            .page-info {
+                top: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                position: fixed;
+                z-index: 200;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="manga-reader">
+        <div class="loading-overlay" id="loading">
+            <div class="spinner"></div>
+        </div>
+        
+        <div class="page-container">
+            <div class="tap-zone tap-zone-left" id="tapLeft"></div>
+            <div class="tap-zone tap-zone-right" id="tapRight"></div>
+            <div class="manga-page" id="mangaPage">
+                <div class="page-content">
+                    <div class="page-image" id="pageImage">
+                        <img src="images/page1.png" alt="Manga page" class="page-image medium" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=\\'page-image-placeholder\\'>🖼️ Page 1</div>'">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-info" id="pageInfo">
+            Page 1 of 4
+        </div>
+
+        <div class="page-number-center" id="pageNumberCenter">
+            Page 1
+        </div>
+
+        <div class="image-controls">
+            <button class="image-control-btn" id="enlargeBtn">🔍+</button>
+            <button class="image-control-btn" id="shrinkBtn">🔍-</button>
+            <div class="size-indicator" id="sizeIndicator">Medium</div>
+        </div>
+
+        <div class="audio-controls">
+            <div class="audio-buttons">
+                <button class="audio-btn" id="playPauseBtn">▶️ Play</button>
+                <button class="audio-btn" id="muteBtn">🔊</button>
+                <input type="range" class="volume-control" id="volumeSlider" min="0" max="1" step="0.1" value="0.7">
+            </div>
+            <div class="audio-timeline">
+                <button class="mobile-play-btn" id="mobilePlayBtn">▶️</button>
+                <div class="time-display" id="currentTime">0:00</div>
+                <input type="range" class="timeline-slider" id="timelineSlider" min="0" max="100" value="0" step="0.1">
+                <div class="time-display" id="totalTime">0:00</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" id="prevBtn" disabled>◀ Previous</button>
+            <button class="control-btn" id="nextBtn">Next ▶</button>
+        </div>
+    </div>
+
+    <script>
+        class AudioMangaReader {
+            constructor() {
+                this.currentPage = 0;
+                this.audio = new Audio();
+                this.isPlaying = false;
+                this.isMuted = false;
+                this.currentImageSize = 'medium';
+                this.imageSizes = ['small', 'medium', 'large', 'extra-large'];
+                this.isUpdatingTimeline = false;
+                this.maxPages = 50; // Maximum pages to check for (you can increase this)
+                
+                this.pages = [];
+                this.loadPagesAutomatically();
+            }
+
+            async loadPagesAutomatically() {
+                // Try to detect pages automatically by checking if images exist
+                for (let i = 1; i <= this.maxPages; i++) {
+                    const imageExists = await this.checkImageExists(`images/page${i}.png`);
+                    if (imageExists) {
+                        this.pages.push({
+                            image: `images/page${i}.png`,
+                            audioUrl: `audio/page${i}.mp3` // Audio will be checked when loading
+                        });
+                    } else {
+                        // Stop checking when we don't find an image
+                        break;
+                    }
+                }
+                
+                // If no pages found, fallback to manual pages
+                if (this.pages.length === 0) {
+                    this.pages = [
+                        {
+                            image: "images/page1.png",
+                            audioUrl: "audio/page1.mp3"
+                        }
+                    ];
+                }
+                
+                // Initialize after pages are loaded
+                this.initializeElements();
+                this.setupEventListeners();
+                this.loadPage(0);
+            }
+
+            checkImageExists(imageSrc) {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => resolve(true);
+                    img.onerror = () => resolve(false);
+                    img.src = imageSrc;
+                });
+            }
+
+            initializeElements() {
+                this.pageImage = document.getElementById('pageImage');
+                this.pageInfo = document.getElementById('pageInfo');
+                this.pageNumberCenter = document.getElementById('pageNumberCenter');
+                this.prevBtn = document.getElementById('prevBtn');
+                this.nextBtn = document.getElementById('nextBtn');
+                this.playPauseBtn = document.getElementById('playPauseBtn');
+                this.mobilePlayBtn = document.getElementById('mobilePlayBtn');
+                this.muteBtn = document.getElementById('muteBtn');
+                this.volumeSlider = document.getElementById('volumeSlider');
+                this.loading = document.getElementById('loading');
+                this.enlargeBtn = document.getElementById('enlargeBtn');
+                this.shrinkBtn = document.getElementById('shrinkBtn');
+                this.sizeIndicator = document.getElementById('sizeIndicator');
+                this.timelineSlider = document.getElementById('timelineSlider');
+                this.currentTime = document.getElementById('currentTime');
+                this.totalTime = document.getElementById('totalTime');
+                this.tapLeft = document.getElementById('tapLeft');
+                this.tapRight = document.getElementById('tapRight');
+            }
+
+            setupEventListeners() {
+                this.prevBtn.addEventListener('click', () => this.previousPage());
+                this.nextBtn.addEventListener('click', () => this.nextPage());
+                this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+                this.mobilePlayBtn.addEventListener('click', () => this.togglePlayPause());
+                this.muteBtn.addEventListener('click', () => this.toggleMute());
+                this.volumeSlider.addEventListener('input', (e) => this.setVolume(e.target.value));
+                this.enlargeBtn.addEventListener('click', () => this.enlargeImage());
+                this.shrinkBtn.addEventListener('click', () => this.shrinkImage());
+                
+                this.tapLeft.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.previousPage();
+                });
+                this.tapRight.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.nextPage();
+                });
+
+                this.tapLeft.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.previousPage();
+                });
+                this.tapRight.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.nextPage();
+                });
+                
+                this.timelineSlider.addEventListener('input', (e) => this.seekAudio(e.target.value));
+                this.timelineSlider.addEventListener('mousedown', () => this.isUpdatingTimeline = true);
+                this.timelineSlider.addEventListener('mouseup', () => this.isUpdatingTimeline = false);
+                
+                this.audio.addEventListener('loadstart', () => this.showLoading());
+                this.audio.addEventListener('canplay', () => this.hideLoading());
+                this.audio.addEventListener('loadedmetadata', () => this.updateTotalTime());
+                this.audio.addEventListener('timeupdate', () => this.updateTimeline());
+                this.audio.addEventListener('ended', () => {
+                    this.isPlaying = false;
+                    this.updatePlayPauseButton();
+                    this.resetTimeline();
+                });
+                this.audio.addEventListener('error', () => {
+                    this.hideLoading();
+                    console.log('Audio not available for this page');
+                    this.resetTimeline();
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            e.preventDefault();
+                            this.previousPage();
+                            break;
+                        case 'ArrowRight':
+                            e.preventDefault();
+                            this.nextPage();
+                            break;
+                        case ' ':
+                            e.preventDefault();
+                            this.togglePlayPause();
+                            break;
+                        case '+':
+                        case '=':
+                            e.preventDefault();
+                            this.enlargeImage();
+                            break;
+                        case '-':
+                            e.preventDefault();
+                            this.shrinkImage();
+                            break;
+                    }
+                });
+
+                // Mouse wheel for image sizing
+                document.addEventListener('wheel', (e) => {
+                    // Only apply on desktop (when image controls are visible)
+                    if (window.innerWidth > 768) {
+                        e.preventDefault();
+                        if (e.deltaY < 0) {
+                            // Scroll up = enlarge
+                            this.enlargeImage();
+                        } else {
+                            // Scroll down = shrink
+                            this.shrinkImage();
+                        }
+                    }
+                }, { passive: false });
+            }
+
+            loadPage(pageIndex) {
+                if (pageIndex < 0 || pageIndex >= this.pages.length) return;
+                
+                this.currentPage = pageIndex;
+                const page = this.pages[pageIndex];
+                
+                this.pageInfo.textContent = `Page ${pageIndex + 1} of ${this.pages.length}`;
+                this.pageNumberCenter.textContent = `Page ${pageIndex + 1}`;
+                this.displayImage(page.image);
+                this.updateTapZones();
+                this.prevBtn.disabled = pageIndex === 0;
+                this.nextBtn.disabled = pageIndex === this.pages.length - 1;
+                this.loadAudio(page.audioUrl);
+                this.updateImageSize();
+                
+                const mangaPage = document.getElementById('mangaPage');
+                mangaPage.style.opacity = '0.7';
+                setTimeout(() => {
+                    mangaPage.style.opacity = '1';
+                }, 150);
+            }
+
+            updateTapZones() {
+                const img = this.pageImage.querySelector('.page-image');
+                if (img) {
+                    const updateZones = () => {
+                        const imgRect = img.getBoundingClientRect();
+                        const pageRect = document.querySelector('.page-container').getBoundingClientRect();
+                        
+                        const imageTop = imgRect.top - pageRect.top;
+                        const imageLeft = imgRect.left - pageRect.left;
+                        const imageWidth = imgRect.width;
+                        const imageHeight = imgRect.height;
+                        
+                        this.tapLeft.style.top = imageTop + 'px';
+                        this.tapLeft.style.left = imageLeft + 'px';
+                        this.tapLeft.style.width = (imageWidth / 2) + 'px';
+                        this.tapLeft.style.height = imageHeight + 'px';
+                        
+                        this.tapRight.style.top = imageTop + 'px';
+                        this.tapRight.style.left = (imageLeft + imageWidth / 2) + 'px';
+                        this.tapRight.style.width = (imageWidth / 2) + 'px';
+                        this.tapRight.style.height = imageHeight + 'px';
+                    };
+                    
+                    if (img.complete && img.naturalHeight !== 0) {
+                        updateZones();
+                    }
+                    img.onload = updateZones;
+                    window.addEventListener('resize', updateZones);
+                }
+            }
+
+            displayImage(imageSrc) {
+                const imageContainer = this.pageImage;
+                const pageNumber = this.currentPage + 1;
+                imageContainer.innerHTML = `<img src="${imageSrc}" alt="Manga page ${pageNumber}" class="page-image ${this.currentImageSize}" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=\\'page-image-placeholder\\'>🖼️ Page ${pageNumber}</div>'">`;
+            }
+
+            enlargeImage() {
+                const currentIndex = this.imageSizes.indexOf(this.currentImageSize);
+                if (currentIndex < this.imageSizes.length - 1) {
+                    this.currentImageSize = this.imageSizes[currentIndex + 1];
+                    this.updateImageSize();
+                }
+            }
+
+            shrinkImage() {
+                const currentIndex = this.imageSizes.indexOf(this.currentImageSize);
+                if (currentIndex > 0) {
+                    this.currentImageSize = this.imageSizes[currentIndex - 1];
+                    this.updateImageSize();
+                }
+            }
+
+            updateImageSize() {
+                const img = this.pageImage.querySelector('.page-image');
+                if (img) {
+                    this.imageSizes.forEach(size => img.classList.remove(size));
+                    img.classList.add(this.currentImageSize);
+                }
+                
+                const sizeNames = {
+                    'small': 'Small',
+                    'medium': 'Medium', 
+                    'large': 'Large',
+                    'extra-large': 'X-Large'
+                };
+                this.sizeIndicator.textContent = sizeNames[this.currentImageSize];
+                this.enlargeBtn.disabled = this.currentImageSize === 'extra-large';
+                this.shrinkBtn.disabled = this.currentImageSize === 'small';
+                setTimeout(() => this.updateTapZones(), 100);
+            }
+
+            async loadAudio(audioUrl) {
+                this.audio.pause();
+                this.audio.currentTime = 0;
+                this.isPlaying = false;
+                this.updatePlayPauseButton();
+                this.resetTimeline();
+                
+                // Check if audio file actually exists
+                const audioExists = await this.checkAudioExists(audioUrl);
+                
+                if (audioUrl && audioExists) {
+                    this.audio.src = audioUrl;
+                    this.audio.volume = this.volumeSlider.value;
+                    // Enable and style play buttons (normal blue)
+                    this.playPauseBtn.style.opacity = '1';
+                    this.playPauseBtn.style.background = 'rgba(52, 152, 219, 0.9)';
+                    this.playPauseBtn.style.cursor = 'pointer';
+                    this.playPauseBtn.disabled = false;
+                    this.mobilePlayBtn.style.opacity = '1';
+                    this.mobilePlayBtn.style.color = 'white';
+                    this.mobilePlayBtn.style.cursor = 'pointer';
+                    this.mobilePlayBtn.disabled = false;
+                    this.timelineSlider.disabled = false;
+                } else {
+                    this.audio.src = '';
+                    // Disable and gray out play buttons
+                    this.playPauseBtn.style.opacity = '0.5';
+                    this.playPauseBtn.style.background = '#555';
+                    this.playPauseBtn.style.cursor = 'not-allowed';
+                    this.playPauseBtn.disabled = true;
+                    this.mobilePlayBtn.style.opacity = '0.5';
+                    this.mobilePlayBtn.style.color = '#888';
+                    this.mobilePlayBtn.style.cursor = 'not-allowed';
+                    this.mobilePlayBtn.disabled = true;
+                    this.timelineSlider.disabled = true;
+                }
+            }
+
+            checkAudioExists(audioSrc) {
+                if (!audioSrc) return Promise.resolve(false);
+                
+                return new Promise((resolve) => {
+                    const audio = new Audio();
+                    audio.oncanplaythrough = () => resolve(true);
+                    audio.onerror = () => resolve(false);
+                    audio.src = audioSrc;
+                });
+            }
+
+            updateTimeline() {
+                if (this.isUpdatingTimeline || !this.audio.duration) return;
+                
+                const currentTime = this.audio.currentTime;
+                const duration = this.audio.duration;
+                const percentage = (currentTime / duration) * 100;
+                
+                this.timelineSlider.value = percentage;
+                this.currentTime.textContent = this.formatTime(currentTime);
+            }
+
+            updateTotalTime() {
+                if (this.audio.duration) {
+                    this.totalTime.textContent = this.formatTime(this.audio.duration);
+                    this.timelineSlider.max = 100;
+                }
+            }
+
+            seekAudio(value) {
+                if (this.audio.duration) {
+                    const seekTime = (value / 100) * this.audio.duration;
+                    this.audio.currentTime = seekTime;
+                    this.currentTime.textContent = this.formatTime(seekTime);
+                }
+            }
+
+            resetTimeline() {
+                this.timelineSlider.value = 0;
+                this.currentTime.textContent = '0:00';
+                this.totalTime.textContent = '0:00';
+            }
+
+            formatTime(seconds) {
+                if (!seconds || isNaN(seconds)) return '0:00';
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+
+            nextPage() {
+                if (this.currentPage < this.pages.length - 1) {
+                    this.loadPage(this.currentPage + 1);
+                }
+            }
+
+            previousPage() {
+                if (this.currentPage > 0) {
+                    this.loadPage(this.currentPage - 1);
+                }
+            }
+
+            togglePlayPause() {
+                if (!this.audio.src) return;
+                
+                if (this.isPlaying) {
+                    this.audio.pause();
+                    this.isPlaying = false;
+                } else {
+                    this.audio.play().catch(e => console.log('Audio play failed:', e));
+                    this.isPlaying = true;
+                }
+                this.updatePlayPauseButton();
+            }
+
+            updatePlayPauseButton() {
+                const desktopText = this.isPlaying ? '⏸️ Pause' : '▶️ Play';
+                const mobileIcon = this.isPlaying ? '⏸️' : '▶️';
+                
+                this.playPauseBtn.textContent = desktopText;
+                this.mobilePlayBtn.textContent = mobileIcon;
+            }
+
+            toggleMute() {
+                this.isMuted = !this.isMuted;
+                this.audio.muted = this.isMuted;
+                this.muteBtn.textContent = this.isMuted ? '🔇' : '🔊';
+            }
+
+            setVolume(value) {
+                this.audio.volume = value;
+            }
+
+            showLoading() {
+                this.loading.style.display = 'flex';
+            }
+
+            hideLoading() {
+                this.loading.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new AudioMangaReader();
+        });
+    </script>
